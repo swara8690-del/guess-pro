@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guess Master Multiplayer</title>
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+<style>
+body {
+  margin:0;
+  font-family:'Segoe UI';
+  background: linear-gradient(135deg,#1e3c72,#2a5298);
+  color:white;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+}
+
+.screen {
+  display:none;
+  text-align:center;
+  background:rgba(0,0,0,0.4);
+  padding:25px;
+  border-radius:20px;
+  width:360px;
+}
+
+.active { display:block; }
+
+button {
+  padding:12px;
+  border:none;
+  border-radius:12px;
+  background:linear-gradient(45deg,#ff7e5f,#feb47b);
+  color:white;
+  cursor:pointer;
+  margin:5px;
+}
+
+input {
+  padding:10px;
+  width:80%;
+  margin:8px;
+  border-radius:10px;
+  border:none;
+}
+
+</style>
+</head>
+<body>
+
+<!-- ROOM SCREEN -->
+<div id="room" class="screen active">
+<h2>🎮 Multiplayer Guess Game</h2>
+
+<input id="name" placeholder="Enter your name">
+
+<button onclick="createRoom()">Create Room</button>
+
+<input id="roomCode" placeholder="Enter Room Code">
+<button onclick="joinRoom()">Join Room</button>
+
+<p id="roomInfo"></p>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="game" class="screen">
+<h3 id="roomDisplay"></h3>
+
+<input id="guess" type="number" placeholder="Enter your guess">
+<button onclick="sendGuess()">Guess</button>
+
+<p id="hint"></p>
+
+<button onclick="leave()">Leave Room</button>
+</div>
+
+<script>
+const socket = io("http://localhost:3000");
+
+let myRoom = "";
+let playerName = "";
+
+// screen switch
+function show(id){
+ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
+}
+
+// CREATE ROOM
+function createRoom(){
+ playerName = document.getElementById("name").value;
+ if(!playerName) return alert("Enter name");
+
+ socket.emit("createRoom", playerName);
+}
+
+// JOIN ROOM
+function joinRoom(){
+ playerName = document.getElementById("name").value;
+ let code = document.getElementById("roomCode").value.toUpperCase();
+
+ if(!playerName || !code) return alert("Enter name & room code");
+
+ socket.emit("joinRoom", {code, name: playerName});
+ myRoom = code;
+
+ startGame();
+}
+
+// WHEN ROOM CREATED
+socket.on("roomCreated", (code)=>{
+ myRoom = code;
+ document.getElementById("roomInfo").textContent = "Room Code: " + code;
+ startGame();
+});
+
+// START GAME
+function startGame(){
+ document.getElementById("roomDisplay").textContent = "Room: " + myRoom;
+ show("game");
+}
+
+// SEND GUESS
+function sendGuess(){
+ let g = Number(document.getElementById("guess").value);
+ if(!g) return;
+
+ socket.emit("guess", {
+   code: myRoom,
+   guess: g,
+   name: playerName
+ });
+}
+
+// RECEIVE MESSAGES
+socket.on("message", (msg)=>{
+ document.getElementById("hint").textContent = msg;
+});
+
+// ERROR HANDLING
+socket.on("errorMsg", (msg)=>{
+ alert(msg);
+});
+
+// LEAVE ROOM
+function leave(){
+ location.reload();
+}
+</script>
+
+</body>
+</html>
